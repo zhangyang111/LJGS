@@ -120,8 +120,7 @@ well-typed LowLang term.*)
                          multi (LowLang.step) (project e) (project e').
   Admitted.
 
-  (* Together with the fact that reduction is deterministic (has to be
-  shown seperately) we can extend the correspondence to whole
+  (* We can extend the correspondence to whole
   evaluations: *)
   Lemma corresp_eval : forall e v,
                          SecLang.value v ->
@@ -170,22 +169,24 @@ well-typed LowLang term.*)
 
   (* Now we have everything: *)
   Theorem NI:
-    forall id e1 e2 v1 v2 e cx rt,
+    forall id e v1 v2 w1 w2 cx rt,
       SecLang.value v1 ->
       SecLang.value v2 ->
+      SecLang.value w1 ->
+      SecLang.value w2 ->
       SecLang.has_type cxEmpty v1 (an rt H) ->
       SecLang.has_type cxEmpty v2 (an rt H) ->
       SecLang.has_type (extend cx id (an rt H)) e (an int L) ->
-      multi SecLang.step e1 v1 ->
-      multi SecLang.step e2 v2 ->
-      v1 = v2
+      multi SecLang.step e[x/v1] w1 ->
+      multi SecLang.step e[x/v1] w2 ->
+      w1 = w2
   .
   Admitted.
   (* Proceed like this:
-     - use [NI_LowLang] to show that eLow = project (e1[id/v1]) = project (e2[id/v2])
-     - use type soundness of LowLang to show that there is a LowLang.value vLow s.t.
-       eLow -->* vLow
-     - use [corresp_eval] to show that project(v1) = eLow and project(v2) = eLow
+     - Let e1 = e[x/v1] and e2 = e[x/v2]
+     - use [NI_LowLang] to show that eLow = project (e1) = project (e2)
+     - use correspondence to show that eLow -->* [w1] and eLow -->* [w2]
+     - use determinism to show that [w1] = [w2]
      - now, use [LowLang_canonical_low_int] and [corresp_project_int]
        to follow the result. *)
 End Correspondence.
