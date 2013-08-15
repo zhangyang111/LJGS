@@ -178,7 +178,7 @@ well-typed LowLang term.*)
       SecLang.has_type cxEmpty v2 (an rt H) ->
       SecLang.has_type (extend cx id (an rt H)) e (an int L) ->
       multi SecLang.step e[x/v1] w1 ->
-      multi SecLang.step e[x/v1] w2 ->
+      multi SecLang.step e[x/v2] w2 ->
       w1 = w2
   .
   Admitted.
