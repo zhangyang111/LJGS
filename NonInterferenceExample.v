@@ -148,7 +148,7 @@ well-typed LowLang term.*)
       LowLang.has_type cxEmpty v1 (an rt H) ->
       LowLang.has_type cxEmpty v2 (an rt H) ->
       LowLang.has_type (extend cx id (an rt H)) e (an int L) ->
-      LowLang.subst id e v1 = LowLang.subst id e v2
+      LowLang.subst id v1 e = LowLang.subst id v2 e
   .
   Admitted. (* Use LowLang_high_term *)
 
