@@ -6824,117 +6824,23 @@ Qed.
 
 
 (*##################*)
-Lemma corresp_step:forall e e' hp hp',
-SecLang.step (e,hp) L (e',hp') ->
-LowLang.Multi LowLang.step (project (e,hp)) L (project (e',hp')).
-Proof. remember L; induction 1;	subst; 
-match goal with
-| [ IH: _ = _ -> LowLang.Multi LowLang.step (project _) _ (project _) |- _ ] => 
-   Case "context case";
-   try specialize (IHstep (eq_refl L));
-   match goal with 
-   | [ |- LowLang.Multi LowLang.step (project (SecLang.tapp _ _,_)) L (project (SecLang.tapp _ _,_)) ] =>
-     unfold project; unfold project_conf; 
-     unfold project in IHstep; unfold project_conf in IHstep;
-     simpl; simpl in IHstep;
-     match goal with
-     [ H : SecLang.step _ _ _ |- _ ] => 
-       apply step_same_mark_or_extend in H; inversion H
-     end
-   | _ => idtac
-   end
-| _ => idtac
+
+Inductive eval_ctxt : Set :=
+| CtxtApp1 : SecLang.tm -> eval_ctxt
+| CtxtApp2 : SecLang.tm -> eval_ctxt
+.
+
+Definition ctxt_apply (cx : eval_ctxt) (t : SecLang.tm) : SecLang.tm :=
+match cx with
+| CtxtApp1 t' => SecLang.tapp t t'
+| CtxtApp2 t' => SecLang.tapp t' t
 end.
-	
-
-
-
-
-(*induction upon the reduction relation in [SecLang]*)
-SCase ("st_prot").
-                 intros; destruct b;
-                 [ auto
-                 | simpl in IHstep; unfold project; simpl; simpl in H0; 
-                   apply proj_hp_H_same in H2; rewrite->H2; apply LowLang.Multi_refl
-                 ].
-Case ("st_protv"). 
-                 destruct b. unfold project. simpl. inversion H2.
-                 rewrite->SecLang.join_tcon_b. rewrite->SecLang.joins_refl. simpl. apply LowLang.Multi_refl. rewrite->SecLang.join_tabs_b.
-                 rewrite->SecLang.joins_refl. simpl. apply LowLang.Multi_refl. rewrite->SecLang.join_tunit_b. rewrite->SecLang.joins_refl.
-                 simpl. apply LowLang.Multi_refl. rewrite->SecLang.join_tloc_b. rewrite->SecLang.joins_refl. simpl. apply LowLang.Multi_refl.
-                 inversion H2. rewrite->SecLang.join_tcon_b. rewrite->SecLang.joins_refl. simpl. apply LowLang.Multi_refl.
-                 rewrite->SecLang.join_tabs_b. rewrite->SecLang.joins_refl. simpl. apply LowLang.Multi_refl. rewrite->SecLang.join_tunit_b.
-                 rewrite->SecLang.joins_refl. simpl. apply LowLang.Multi_refl. rewrite->SecLang.join_tloc_b. rewrite->SecLang.joins_refl. simpl.
-                 apply LowLang.Multi_refl.
-Case ("st_appabs").
-                 destruct b. unfold project. simpl.  unfold project_conf. simpl. rewrite->project_e_subst. rewrite->project_conf'_subst. 
-                 apply LowLang.Multi_step with (y:=(LowLang.subst x
-     (project_conf'_e (project_e v)
-        (project_conf'_hp (project_hp hp0) (project_hp hp0)))
-     (project_conf'_e (project_e e0)
-        (project_conf'_hp (project_hp hp0) (project_hp hp0))),
-  erase_hp (project_conf'_hp (project_hp hp0) (project_hp hp0)))). 
-                 apply LowLang.st_appabs. apply SecLang_value_LowLang. apply H3. apply LowLang.Multi_refl. apply H3. unfold project. simpl. unfold project_conf.
-                 simpl. apply LowLang.Multi_step with (y:=(LowLang.tH,
-                 erase_hp (project_conf'_hp (project_hp hp0) (project_hp hp0)))). apply LowLang.st_apptH.
-                 apply SecLang_value_LowLang. apply H3. apply LowLang.Multi_refl.
-SCase ("st_app1"). 
-                              
-                 
-                 (*case one: two heaps of the same length with identical marks*)
-                 assert (same_mark (project_hp hp0)(project_conf'_hp (project_hp hp0)(project_hp hp0)) = true). apply same_mark_heap.
-                 assert (same_mark (project_conf'_hp (project_hp hp0) (project_hp hp0))(project_hp hp'0) = true). apply same_mark_replace with (hp1:=project_hp hp0).
-                 apply H4. apply H5. apply same_mark_sym in H6. assert (same_mark (project_hp hp'0)(project_conf'_hp (project_hp hp'0) (project_hp hp'0)) = true). 
-                 apply same_mark_heap. assert (same_mark (project_conf'_hp (project_hp hp0) (project_hp hp0))(project_conf'_hp (project_hp hp'0) (project_hp hp'0)) = true).
-                 apply same_mark_replace with (hp1:=project_hp hp'0). apply H7. apply H6. apply project_conf'_e_same_mark with (t:=project_e t2)in H8. rewrite->H8. clear H4.
-                 clear H5. clear H6. clear H7. clear H8. 
-                 assert (fst (project_conf'_e (project_e t1)
-                 (project_conf'_hp (project_hp hp0) (project_hp hp0)),
-                 erase_hp (project_conf'_hp (project_hp hp0) (project_hp hp0))) = (project_conf'_e (project_e t1)
-                 (project_conf'_hp (project_hp hp0) (project_hp hp0)))). reflexivity. rewrite<-H4. clear H4.
-                 assert (snd (project_conf'_e (project_e t1)
-                 (project_conf'_hp (project_hp hp0) (project_hp hp0)),
-                 erase_hp (project_conf'_hp (project_hp hp0) (project_hp hp0))) = erase_hp (project_conf'_hp (project_hp hp0) (project_hp hp0))).
-                 reflexivity. rewrite<-H4. clear H4. 
-                 assert (fst (project_conf'_e (project_e t1')
-                 (project_conf'_hp (project_hp hp'0) (project_hp hp'0)),
-                 erase_hp (project_conf'_hp (project_hp hp'0) (project_hp hp'0))) = (project_conf'_e (project_e t1')
-                 (project_conf'_hp (project_hp hp'0) (project_hp hp'0)))). reflexivity. rewrite<-H4. clear H4.
-                 assert (snd (project_conf'_e (project_e t1')
-                 (project_conf'_hp (project_hp hp'0) (project_hp hp'0)),
-                 erase_hp (project_conf'_hp (project_hp hp'0) (project_hp hp'0))) =  erase_hp (project_conf'_hp (project_hp hp'0) (project_hp hp'0))).
-                 reflexivity. rewrite<-H4. clear H4. apply multi_step_app1. apply IHstep. 
-                 (*case two: after reduction heap is expanded by one low value*)
-                 inversion H4. assert (project_conf'_e (project_e t2)
-                 (project_conf'_hp (project_hp hp'0) (project_hp hp'0)) = project_conf'_e (project_e t2)
-                 (project_conf'_hp ((LowLang.snoc (project_hp hp0) (x, (length hp0, length (project_hp hp0))))) ((LowLang.snoc (project_hp hp0) (x, (length hp0, length (project_hp hp0))))))).
-                 rewrite<-H5. reflexivity. rewrite->H6. assert ((project_conf'_e (project_e t2)
-                 (project_conf'_hp (project_hp hp0) (project_hp hp0))) = (project_conf'_e (project_e t2)
-                 (project_conf'_hp
-                 (LowLang.snoc (project_hp hp0)
-                 (x, (length hp0, length (project_hp hp0))))
-                 (LowLang.snoc (project_hp hp0)
-                 (x, (length hp0, length (project_hp hp0))))))). apply project_conf'_e_add_one_low. apply H2. rewrite<-H7. clear H5. clear H6. clear H7. 
-                 assert (fst (project_conf'_e (project_e t1)
-                 (project_conf'_hp (project_hp hp0) (project_hp hp0)),
-                 erase_hp (project_conf'_hp (project_hp hp0) (project_hp hp0))) = (project_conf'_e (project_e t1)
-                 (project_conf'_hp (project_hp hp0) (project_hp hp0)))). reflexivity. rewrite<-H5. clear H5.
-                 assert (snd (project_conf'_e (project_e t1)
-                 (project_conf'_hp (project_hp hp0) (project_hp hp0)),
-                 erase_hp (project_conf'_hp (project_hp hp0) (project_hp hp0))) = erase_hp (project_conf'_hp (project_hp hp0) (project_hp hp0))).
-                 reflexivity. rewrite<-H5. clear H5. 
-                 assert (fst (project_conf'_e (project_e t1')
-                 (project_conf'_hp (project_hp hp'0) (project_hp hp'0)),
-                 erase_hp (project_conf'_hp (project_hp hp'0) (project_hp hp'0))) = (project_conf'_e (project_e t1')
-                 (project_conf'_hp (project_hp hp'0) (project_hp hp'0)))). reflexivity. rewrite<-H5. clear H5.
-                 assert (snd (project_conf'_e (project_e t1')
-                 (project_conf'_hp (project_hp hp'0) (project_hp hp'0)),
-                 erase_hp (project_conf'_hp (project_hp hp'0) (project_hp hp'0))) =  erase_hp (project_conf'_hp (project_hp hp'0) (project_hp hp'0))).
-                 reflexivity. rewrite<-H5. clear H5. apply multi_step_app1. apply IHstep. 
-  SCase ("tapp2"). 
-                 unfold project. unfold project_conf. unfold project in IHstep. unfold project_conf in IHstep. simpl. simpl in IHstep.
-                 destruct PC. 
-                 SCase ("PC:=L").  apply step_same_mark_or_extend in H4. inversion H4.
+(*
+  assert_context_congruence cx' (SecLang.tapp v1 t2) (SecLang.tapp v1 t2').
+            unfold project; unfold project_conf; 
+     unfold project in IHstep; unfold project_conf in IHstep;
+     simpl; simpl in IHstep.
+        
                                   (*case one: two heaps of the same length with identical marks*)
                                    assert (same_mark (project_hp hp0)(project_conf'_hp (project_hp hp0)(project_hp hp0)) = true). apply same_mark_heap.
                                    assert (same_mark (project_conf'_hp (project_hp hp0) (project_hp hp0))(project_hp hp'0) = true). apply same_mark_replace with (hp1:=project_hp hp0).
@@ -6986,32 +6892,203 @@ SCase ("st_app1").
                                  (project_conf'_hp (project_hp hp'0) (project_hp hp'0)),
                                   erase_hp (project_conf'_hp (project_hp hp'0) (project_hp hp'0))) =  erase_hp (project_conf'_hp (project_hp hp'0) (project_hp hp'0))).
                                   reflexivity. rewrite<-H6. clear H6. apply multi_step_app2. apply SecLang_value_LowLang. apply H3.
-                                  apply IHstep.                                 
-                 SCase ("PC:=H"). apply proj_hp_H_same in H4. assert (project_conf'_e (project_e v1)
-                                 (project_conf'_hp (project_hp hp0) (project_hp hp0)) = project_conf'_e (project_e v1)
-                                 (project_conf'_hp (project_hp hp'0) (project_hp hp'0))). rewrite->H4. reflexivity. rewrite->H5. clear H5.
-                                  assert (fst (project_conf'_e (project_e t2)
-                                 (project_conf'_hp (project_hp hp0) (project_hp hp0)),
-                                  erase_hp (project_conf'_hp (project_hp hp0) (project_hp hp0))) = (project_conf'_e (project_e t2)
-                                 (project_conf'_hp (project_hp hp0) (project_hp hp0)))). reflexivity. rewrite<-H5. clear H5.
-                                  assert (snd (project_conf'_e (project_e t2)
-                                 (project_conf'_hp (project_hp hp0) (project_hp hp0)),
-                                  erase_hp (project_conf'_hp (project_hp hp0) (project_hp hp0))) = erase_hp (project_conf'_hp (project_hp hp0) (project_hp hp0))).
-                                  reflexivity. rewrite<-H5. clear H5. 
-                                  assert (fst (project_conf'_e (project_e t2')
-                                 (project_conf'_hp (project_hp hp'0) (project_hp hp'0)),
-                                  erase_hp (project_conf'_hp (project_hp hp'0) (project_hp hp'0))) = (project_conf'_e (project_e t2')
-                                 (project_conf'_hp (project_hp hp'0) (project_hp hp'0)))). reflexivity. rewrite<-H5. clear H5.
-                                  assert (snd (project_conf'_e (project_e t2')
-                                 (project_conf'_hp (project_hp hp'0) (project_hp hp'0)),
-                                  erase_hp (project_conf'_hp (project_hp hp'0) (project_hp hp'0))) =  erase_hp (project_conf'_hp (project_hp hp'0) (project_hp hp'0))).
-                                  reflexivity. rewrite<-H5. clear H5. apply multi_step_app2. apply SecLang_value_LowLang. apply H3. apply IHstep.
+                                  apply IHstep.                                                  
+*)
+
+ Lemma corresp_step_ctxt_same_mark :  
+        forall t t' cx tcx tcx' hp hp'
+        ,  same_mark (project_hp hp) (project_hp hp') = true 
+        -> LowLang.Multi LowLang.step (project (t, hp)) L (project (t', hp'))
+        -> tcx = ctxt_apply cx t
+        -> tcx' = ctxt_apply cx t'
+        -> LowLang.Multi LowLang.step (project (tcx, hp)) L (project (tcx', hp')).
+Proof. intros.
+ assert (same_mark (project_hp hp)(project_conf'_hp (project_hp hp)(project_hp hp)) = true) 
+         by (apply same_mark_heap).
+ assert (same_mark (project_conf'_hp (project_hp hp) (project_hp hp))(project_hp hp') = true)
+         by (apply same_mark_replace with (hp1:=project_hp hp); assumption).
+ apply same_mark_sym in H5. 
+ assert (same_mark (project_hp hp')(project_conf'_hp (project_hp hp') (project_hp hp')) = true) 
+   by (apply same_mark_heap). 
+ assert (same_mark (project_conf'_hp (project_hp hp) (project_hp hp))(project_conf'_hp (project_hp hp') (project_hp hp')) = true)
+   by (apply same_mark_replace with (hp1:=project_hp hp');assumption).
+match goal with
+| [ IHstep: LowLang.Multi LowLang.step _ _ _ |- _ ] =>
+     unfold project; simpl; unfold project_conf; 
+     unfold project in IHstep; unfold project_conf in IHstep;
+     simpl; simpl in IHstep    
+end.
+(* these assertions work.. I just don't know how to use them *)
+ assert (fst (project_conf'_e (project_e t')
+ (project_conf'_hp (project_hp hp') (project_hp hp')),
+ erase_hp (project_conf'_hp (project_hp hp') (project_hp hp'))) = (project_conf'_e (project_e t')
+ (project_conf'_hp (project_hp hp') (project_hp hp')))) by reflexivity.
+
+
+
+
+ assert (snd (project_conf'_e (project_e t)
+ (project_conf'_hp (project_hp hp) (project_hp hp)),
+ erase_hp (project_conf'_hp (project_hp hp) (project_hp hp))) = erase_hp (project_conf'_hp (project_hp hp) (project_hp hp))) by reflexivity.
+
+ assert (snd (project_conf'_e (project_e t')
+ (project_conf'_hp (project_hp hp') (project_hp hp')),
+ erase_hp (project_conf'_hp (project_hp hp') (project_hp hp'))) =  erase_hp (project_conf'_hp (project_hp hp') (project_hp hp'))) by reflexivity.
+  
+ assert (fst (project_conf'_e (project_e t)
+ (project_conf'_hp (project_hp hp) (project_hp hp)),
+ erase_hp (project_conf'_hp (project_hp hp) (project_hp hp))) = (project_conf'_e (project_e t)
+ (project_conf'_hp (project_hp hp) (project_hp hp)))) by reflexivity. 
+
+
+
+(* The following code still does not work *)
+(*
+ apply project_conf'_e_same_mark with (t:=project_e t2)in H7. rewrite->H8. 
+ clear H4. clear H5. clear H6. clear H7. clear H8. 
+ 
+rewrite<-H8.
+
+  rewrite<-H4. clear H4. 
+
+  rewrite<-H4. clear H4.
+
+  rewrite<-H4. clear H4.
+
+  rewrite<-H4. clear H4. apply multi_step_app1. apply IHstep. 
+
+
+ *)
+admit.
+Qed.
+
+Lemma corresp_step_ctxt_extend :  
+        forall t1 t1' cx tcx tcx' hp hp' L0
+        , project_hp hp' = LowLang.snoc (project_hp hp) (L0, (length hp, length (project_hp hp))) 
+        -> LowLang.Multi LowLang.step (project (t1, hp)) L (project (t1', hp'))
+        -> tcx = ctxt_apply cx t1
+        -> tcx' = ctxt_apply cx t1'
+        -> LowLang.Multi LowLang.step (project (tcx, hp)) L (project (tcx', hp')).
+      (*
+      (*case two: after reduction heap is expanded by one low value*)
+                 inversion H4. assert (project_conf'_e (project_e t2)
+                 (project_conf'_hp (project_hp hp'0) (project_hp hp'0)) = project_conf'_e (project_e t2)
+                 (project_conf'_hp ((LowLang.snoc (project_hp hp0) (x, (length hp0, length (project_hp hp0))))) ((LowLang.snoc (project_hp hp0) (x, (length hp0, length (project_hp hp0))))))).
+                 rewrite<-H5. reflexivity. rewrite->H6. assert ((project_conf'_e (project_e t2)
+                 (project_conf'_hp (project_hp hp0) (project_hp hp0))) = (project_conf'_e (project_e t2)
+                 (project_conf'_hp
+                 (LowLang.snoc (project_hp hp0)
+                 (x, (length hp0, length (project_hp hp0))))
+                 (LowLang.snoc (project_hp hp0)
+                 (x, (length hp0, length (project_hp hp0))))))). apply project_conf'_e_add_one_low. apply H2. rewrite<-H7. clear H5. clear H6. clear H7. 
+                 assert (fst (project_conf'_e (project_e t1)
+                 (project_conf'_hp (project_hp hp0) (project_hp hp0)),
+                 erase_hp (project_conf'_hp (project_hp hp0) (project_hp hp0))) = (project_conf'_e (project_e t1)
+                 (project_conf'_hp (project_hp hp0) (project_hp hp0)))). reflexivity. rewrite<-H5. clear H5.
+                 assert (snd (project_conf'_e (project_e t1)
+                 (project_conf'_hp (project_hp hp0) (project_hp hp0)),
+                 erase_hp (project_conf'_hp (project_hp hp0) (project_hp hp0))) = erase_hp (project_conf'_hp (project_hp hp0) (project_hp hp0))).
+                 reflexivity. rewrite<-H5. clear H5. 
+                 assert (fst (project_conf'_e (project_e t1')
+                 (project_conf'_hp (project_hp hp'0) (project_hp hp'0)),
+                 erase_hp (project_conf'_hp (project_hp hp'0) (project_hp hp'0))) = (project_conf'_e (project_e t1')
+                 (project_conf'_hp (project_hp hp'0) (project_hp hp'0)))). reflexivity. rewrite<-H5. clear H5.
+                 assert (snd (project_conf'_e (project_e t1')
+                 (project_conf'_hp (project_hp hp'0) (project_hp hp'0)),
+                 erase_hp (project_conf'_hp (project_hp hp'0) (project_hp hp'0))) =  erase_hp (project_conf'_hp (project_hp hp'0) (project_hp hp'0))).
+                 reflexivity. rewrite<-H5. clear H5. apply multi_step_app1. apply IHstep. 
+        *)
+        admit. Qed.
+
+Ltac assert_context_congruence cx t t':= 
+match t with
+| SecLang.tapp ?t1 ?t2 => 
+  match t' with 
+  | SecLang.tapp ?t1' t2 => 
+     pose (CtxtApp1 t2) as cx; 
+     assert (t = ctxt_apply cx t1) by reflexivity;
+     assert (t' = ctxt_apply cx t1') by reflexivity
+  | SecLang.tapp t1 ?t2' => 
+     pose (CtxtApp2 t1) as cx; 
+     assert (t = ctxt_apply cx t2) by reflexivity;
+     assert (t' = ctxt_apply cx t2') by reflexivity
+  | _ => idtac "not a context congruence" 
+  end
+| _ => fail "not implemented"
+end.
+
+Example ex_tapp1_cong : forall t1 t2 t1', exists cx, SecLang.tapp t1 t2 = ctxt_apply cx t1 
+                                                 /\  SecLang.tapp t1' t2 = ctxt_apply cx t1'.
+Proof. intros. assert_context_congruence cx' (SecLang.tapp t1 t2) (SecLang.tapp t1' t2). eauto. Qed.
+
+Example ex_tapp2_cong : forall t1 t2 t1', exists cx, SecLang.tapp t2 t1 = ctxt_apply cx t1 
+                                                 /\  SecLang.tapp t2 t1' = ctxt_apply cx t1'.
+Proof. intros. assert_context_congruence cx' (SecLang.tapp t2 t1) (SecLang.tapp t2 t1'). eauto. Qed.
+
+
+Lemma corresp_step:forall e e' hp hp',
+SecLang.step (e,hp) L (e',hp') ->
+LowLang.Multi LowLang.step (project (e,hp)) L (project (e',hp')).
+Proof. remember L; induction 1;	subst; 
+match goal with
+| [ IH: _ = _ -> LowLang.Multi LowLang.step (project _) _ (project _) 
+  |- LowLang.Multi LowLang.step (project (?t,_)) _ (project (?t',_)) ] => 
+   Case "context case";
+   try specialize (IHstep (eq_refl L));
+   try (let cx := fresh in assert_context_congruence cx t t'; idtac "WORKED");
+   match goal with
+       [ H : SecLang.step _ _ _ |- _ ] => 
+         let Hex := fresh 
+         in apply step_same_mark_or_extend in H; inversion H as [|Hex]  ;  
+            [ try eapply corresp_step_ctxt_same_mark; eassumption   
+            | try (let l := fresh in inversion Hex as [l ?];
+                  eapply corresp_step_ctxt_extend; eassumption)
+            ]
+   end
+
+   
+| _ => idtac
+end.
+	
+
+
+
+
+(*induction upon the reduction relation in [SecLang]*)
+SCase ("st_prot").
+                 intros; destruct b;
+                 [ auto
+                 | simpl in IHstep; unfold project; simpl; simpl in H0; 
+                   apply proj_hp_H_same in H2; rewrite->H2; apply LowLang.Multi_refl
+                 ].
+Case ("st_protv"). 
+                 destruct b. unfold project. simpl. inversion H2.
+                 rewrite->SecLang.join_tcon_b. rewrite->SecLang.joins_refl. simpl. apply LowLang.Multi_refl. rewrite->SecLang.join_tabs_b.
+                 rewrite->SecLang.joins_refl. simpl. apply LowLang.Multi_refl. rewrite->SecLang.join_tunit_b. rewrite->SecLang.joins_refl.
+                 simpl. apply LowLang.Multi_refl. rewrite->SecLang.join_tloc_b. rewrite->SecLang.joins_refl. simpl. apply LowLang.Multi_refl.
+                 inversion H2. rewrite->SecLang.join_tcon_b. rewrite->SecLang.joins_refl. simpl. apply LowLang.Multi_refl.
+                 rewrite->SecLang.join_tabs_b. rewrite->SecLang.joins_refl. simpl. apply LowLang.Multi_refl. rewrite->SecLang.join_tunit_b.
+                 rewrite->SecLang.joins_refl. simpl. apply LowLang.Multi_refl. rewrite->SecLang.join_tloc_b. rewrite->SecLang.joins_refl. simpl.
+                 apply LowLang.Multi_refl.
+Case ("st_appabs").
+                 destruct b. unfold project. simpl.  unfold project_conf. simpl. rewrite->project_e_subst. rewrite->project_conf'_subst. 
+                 apply LowLang.Multi_step with (y:=(LowLang.subst x
+     (project_conf'_e (project_e v)
+        (project_conf'_hp (project_hp hp0) (project_hp hp0)))
+     (project_conf'_e (project_e e0)
+        (project_conf'_hp (project_hp hp0) (project_hp hp0))),
+  erase_hp (project_conf'_hp (project_hp hp0) (project_hp hp0)))). 
+                 apply LowLang.st_appabs. apply SecLang_value_LowLang. apply H3. apply LowLang.Multi_refl. apply H3. unfold project. simpl. unfold project_conf.
+                 simpl. apply LowLang.Multi_step with (y:=(LowLang.tH,
+                 erase_hp (project_conf'_hp (project_hp hp0) (project_hp hp0)))). apply LowLang.st_apptH.
+                 apply SecLang_value_LowLang. apply H3. apply LowLang.Multi_refl.
+
 Case ("st_refv").
                 subst. destruct b.
                 unfold project. unfold project_conf. simpl. 
                 inversion H2.
                 (*v=SecLang.tcon n b*)
-                destruct b. destruct T. destruct s. destruct PC. simpl. rewrite->SecLang.join_tcon_b. simpl. subst.
+                destruct b. destruct T. destruct s. (* destruct PC.*) simpl. rewrite->SecLang.join_tcon_b. simpl. subst.
                 apply project_hp_Lextend with (hp:=hp0)(T:=an r L) in H2. rewrite->H2. simpl. assert (LowLang.value (LowLang.tcon n)). apply LowLang.v_c. apply return_smallest_match_snoc with (hp:=hp0)(T:=an r L) in H3.
                 rewrite->H3. simpl. assert (Some (length (project_hp hp0)) = Some (length (project_conf'_hp(project_hp hp0)(project_hp hp0)))). rewrite->project_conf'_hp_length. reflexivity. rewrite->H4. clear H4.
                 assert (Some (length (project_conf'_hp(project_hp hp0)(project_hp hp0))) = Some (length (erase_hp (project_conf'_hp(project_hp hp0)(project_hp hp0))))). rewrite->erase_hp_length. reflexivity. rewrite->H4.
