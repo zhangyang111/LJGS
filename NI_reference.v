@@ -6825,16 +6825,21 @@ Qed.
 
 (*##################*)
 
-Inductive eval_ctxt : Set :=
-| CtxtApp1 : SecLang.tm -> eval_ctxt
-| CtxtApp2 : SecLang.tm -> eval_ctxt
+Inductive eval_ctxt (t : SecLang.tm) : Set :=
+| CtxtApp1 : eval_ctxt t
+| CtxtApp2 : eval_ctxt t
+| CtxtAsgn1 : eval_ctxt t
+| CtxtAsgn2 : eval_ctxt t
 .
 
-Definition ctxt_apply (cx : eval_ctxt) (t : SecLang.tm) : SecLang.tm :=
+Definition ctxt_apply {t' : SecLang.tm} (cx : eval_ctxt t') (t : SecLang.tm) : SecLang.tm :=
 match cx with
-| CtxtApp1 t' => SecLang.tapp t t'
-| CtxtApp2 t' => SecLang.tapp t' t
+| CtxtApp1 => SecLang.tapp t t'
+| CtxtApp2  => SecLang.tapp t' t
+| CtxtAsgn1 => SecLang.tassign t t'
+| CtxtAsgn2 => SecLang.tassign t' t
 end.
+(* and so on *)
 (*
   assert_context_congruence cx' (SecLang.tapp v1 t2) (SecLang.tapp v1 t2').
             unfold project; unfold project_conf; 
@@ -6896,11 +6901,11 @@ end.
 *)
 
  Lemma corresp_step_ctxt_same_mark :  
-        forall t t' cx tcx tcx' hp hp'
+        forall t1 t1' t2 (cx : eval_ctxt t2) tcx tcx' hp hp'
         ,  same_mark (project_hp hp) (project_hp hp') = true 
-        -> LowLang.Multi LowLang.step (project (t, hp)) L (project (t', hp'))
-        -> tcx = ctxt_apply cx t
-        -> tcx' = ctxt_apply cx t'
+        -> LowLang.Multi LowLang.step (project (t1, hp)) L (project (t1', hp'))
+        -> tcx = ctxt_apply cx t1
+        -> tcx' = ctxt_apply cx t1'
         -> LowLang.Multi LowLang.step (project (tcx, hp)) L (project (tcx', hp')).
 Proof. intros.
  assert (same_mark (project_hp hp)(project_conf'_hp (project_hp hp)(project_hp hp)) = true) 
@@ -6912,58 +6917,24 @@ Proof. intros.
    by (apply same_mark_heap). 
  assert (same_mark (project_conf'_hp (project_hp hp) (project_hp hp))(project_conf'_hp (project_hp hp') (project_hp hp')) = true)
    by (apply same_mark_replace with (hp1:=project_hp hp');assumption).
+ 
 match goal with
-| [ IHstep: LowLang.Multi LowLang.step _ _ _ |- _ ] =>
+| [ IHstep: LowLang.Multi LowLang.step _ _ _ 
+  , H: same_mark _ _ = true 
+  |- _ ] =>
      unfold project; simpl; unfold project_conf; 
      unfold project in IHstep; unfold project_conf in IHstep;
-     simpl; simpl in IHstep    
-end.
-(* these assertions work.. I just don't know how to use them *)
- assert (fst (project_conf'_e (project_e t')
- (project_conf'_hp (project_hp hp') (project_hp hp')),
- erase_hp (project_conf'_hp (project_hp hp') (project_hp hp'))) = (project_conf'_e (project_e t')
- (project_conf'_hp (project_hp hp') (project_hp hp')))) by reflexivity.
+     simpl; simpl in IHstep;
 
+     apply project_conf'_e_same_mark with (t:=project_e t2)in H;
+     destruct cx; subst; simpl in *; rewrite H7
+end;
 
-
-
- assert (snd (project_conf'_e (project_e t)
- (project_conf'_hp (project_hp hp) (project_hp hp)),
- erase_hp (project_conf'_hp (project_hp hp) (project_hp hp))) = erase_hp (project_conf'_hp (project_hp hp) (project_hp hp))) by reflexivity.
-
- assert (snd (project_conf'_e (project_e t')
- (project_conf'_hp (project_hp hp') (project_hp hp')),
- erase_hp (project_conf'_hp (project_hp hp') (project_hp hp'))) =  erase_hp (project_conf'_hp (project_hp hp') (project_hp hp'))) by reflexivity.
-  
- assert (fst (project_conf'_e (project_e t)
- (project_conf'_hp (project_hp hp) (project_hp hp)),
- erase_hp (project_conf'_hp (project_hp hp) (project_hp hp))) = (project_conf'_e (project_e t)
- (project_conf'_hp (project_hp hp) (project_hp hp)))) by reflexivity. 
-
-
-
-(* The following code still does not work *)
-(*
- apply project_conf'_e_same_mark with (t:=project_e t2)in H7. rewrite->H8. 
- clear H4. clear H5. clear H6. clear H7. clear H8. 
- 
-rewrite<-H8.
-
-  rewrite<-H4. clear H4. 
-
-  rewrite<-H4. clear H4.
-
-  rewrite<-H4. clear H4.
-
-  rewrite<-H4. clear H4. apply multi_step_app1. apply IHstep. 
-
-
- *)
-admit.
+admit. (* TODO: adapt multi_step_app1...etc *)
 Qed.
 
 Lemma corresp_step_ctxt_extend :  
-        forall t1 t1' cx tcx tcx' hp hp' L0
+        forall t1 t1' t2 (cx : eval_ctxt t2) tcx tcx' hp hp' L0
         , project_hp hp' = LowLang.snoc (project_hp hp) (L0, (length hp, length (project_hp hp))) 
         -> LowLang.Multi LowLang.step (project (t1, hp)) L (project (t1', hp'))
         -> tcx = ctxt_apply cx t1
@@ -7014,16 +6985,33 @@ match t with
      assert (t' = ctxt_apply cx t2') by reflexivity
   | _ => idtac "not a context congruence" 
   end
-| _ => fail "not implemented"
+| SecLang.tassign ?t1 ?t2 => 
+  match t' with
+  | SecLang.tassign ?t1' t2 => 
+     pose (CtxtAsgn1 t2) as cx; 
+     assert (t = ctxt_apply cx t1) by reflexivity;
+     assert (t' = ctxt_apply cx t1') by reflexivity
+  | SecLang.tassign t1 ?t2' => 
+     pose (CtxtAsgn2 t1) as cx; 
+     assert (t = ctxt_apply cx t2) by reflexivity;
+     assert (t' = ctxt_apply cx t2') by reflexivity
+  end
 end.
 
-Example ex_tapp1_cong : forall t1 t2 t1', exists cx, SecLang.tapp t1 t2 = ctxt_apply cx t1 
+Example ex_tapp1_cong : forall t1 t2 t1', exists cx : eval_ctxt t2, SecLang.tapp t1 t2 = ctxt_apply cx t1 
                                                  /\  SecLang.tapp t1' t2 = ctxt_apply cx t1'.
 Proof. intros. assert_context_congruence cx' (SecLang.tapp t1 t2) (SecLang.tapp t1' t2). eauto. Qed.
 
-Example ex_tapp2_cong : forall t1 t2 t1', exists cx, SecLang.tapp t2 t1 = ctxt_apply cx t1 
+Example ex_tapp2_cong : forall t1 t2 t1', exists cx : eval_ctxt t2, SecLang.tapp t2 t1 = ctxt_apply cx t1 
                                                  /\  SecLang.tapp t2 t1' = ctxt_apply cx t1'.
 Proof. intros. assert_context_congruence cx' (SecLang.tapp t2 t1) (SecLang.tapp t2 t1'). eauto. Qed.
+
+Example ex_tassign1_cong : forall t1 t2 t1', exists cx : eval_ctxt t2, SecLang.tassign t2 t1 = ctxt_apply cx t1 
+                                                 /\  SecLang.tassign t2 t1' = ctxt_apply cx t1'.
+Proof. intros. assert_context_congruence cx' (SecLang.tassign t2 t1) (SecLang.tassign t2 t1'). eauto. Qed.
+Example ex_tassign2_cong : forall t1 t2 t1', exists cx : eval_ctxt t2, SecLang.tassign t1 t2 = ctxt_apply cx t1 
+                                                 /\  SecLang.tassign t1' t2 = ctxt_apply cx t1'.
+Proof. intros. assert_context_congruence cx' (SecLang.tassign t1 t2) (SecLang.tassign t1' t2). eauto. Qed.
 
 
 Lemma corresp_step:forall e e' hp hp',
@@ -7031,28 +7019,23 @@ SecLang.step (e,hp) L (e',hp') ->
 LowLang.Multi LowLang.step (project (e,hp)) L (project (e',hp')).
 Proof. remember L; induction 1;	subst; 
 match goal with
-| [ IH: _ = _ -> LowLang.Multi LowLang.step (project _) _ (project _) 
+| [ IH : L = L -> LowLang.Multi LowLang.step _ _ _ 
   |- LowLang.Multi LowLang.step (project (?t,_)) _ (project (?t',_)) ] => 
-   Case "context case";
-   try specialize (IHstep (eq_refl L));
-   try (let cx := fresh in assert_context_congruence cx t t'; idtac "WORKED");
-   match goal with
-       [ H : SecLang.step _ _ _ |- _ ] => 
-         let Hex := fresh 
-         in apply step_same_mark_or_extend in H; inversion H as [|Hex]  ;  
-            [ try eapply corresp_step_ctxt_same_mark; eassumption   
-            | try (let l := fresh in inversion Hex as [l ?];
-                  eapply corresp_step_ctxt_extend; eassumption)
-            ]
-   end
-
-   
+  specialize (IH (eq_refl L));
+  try (let cx := fresh 
+       in assert_context_congruence cx t t'; 
+          match goal with
+          | [ H : SecLang.step _ _ _ |- _ ] =>
+            apply step_same_mark_or_extend in H; 
+            let Hex := fresh
+            in inversion H as [|Hex];
+               [ eapply corresp_step_ctxt_same_mark; eassumption
+               | inversion Hex; eapply corresp_step_ctxt_extend; eassumption 
+               ]
+          end;
+         idtac "WORKED")
 | _ => idtac
-end.
-	
-
-
-
+end. 
 
 (*induction upon the reduction relation in [SecLang]*)
 SCase ("st_prot").
